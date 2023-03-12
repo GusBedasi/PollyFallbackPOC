@@ -2,6 +2,7 @@ using Polly;
 using Serilog;
 using PollyFallbackPOC.Services;
 using Serilog.Extensions.Logging;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,10 +30,10 @@ builder.Services.AddHttpClient<IUsersService, UsersService>(client =>
     client.BaseAddress = new Uri("https://jsonplaceholder.typicode.com");
 });
 
-builder.Services.AddSingleton<IAsyncPolicy<string>>(serviceProvider =>
+var registry = builder.Services.AddPolicyRegistry((serviceProvider, registry) =>
 {
-    return Policy<string>
-        .Handle<Exception>()
+    registry.Add("GetUsersFallback", Policy<string>
+        .Handle<HttpRequestException>(x => x.StatusCode >= HttpStatusCode.BadRequest && x.StatusCode <= HttpStatusCode.InternalServerError)
         .FallbackAsync(async (cancellationToken) =>
         {
             var logger = serviceProvider.GetRequiredService<ILogger<UsersService>>();
@@ -45,7 +46,7 @@ builder.Services.AddSingleton<IAsyncPolicy<string>>(serviceProvider =>
             var response = await httpClient.GetStringAsync("/users", cancellationToken);
 
             return response;
-        });
+        }));
 });
 
 var app = builder.Build();

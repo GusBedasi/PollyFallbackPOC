@@ -1,4 +1,5 @@
 ﻿using Polly;
+using Polly.Registry;
 
 namespace PollyFallbackPOC.Services
 {
@@ -6,10 +7,11 @@ namespace PollyFallbackPOC.Services
     {
         private readonly HttpClient _httpClient;
         private readonly IAsyncPolicy<string> _policy;
-        public UsersService(HttpClient httpClient, IAsyncPolicy<string> policy)
+
+        public UsersService(HttpClient httpClient, IReadOnlyPolicyRegistry<string> policyRegistry)
         {
             _httpClient = httpClient;
-            _policy = policy;
+            _policy = policyRegistry.Get<IAsyncPolicy<string>>("GetUsersFallback");
         }
 
         public async Task<string> GetUsers(CancellationToken cancellationToken)
